@@ -1,0 +1,12 @@
+# Arquivo com todas as chaves secretas
+.env
+
+# Ambiente virtual python
+.venv/
+
+# Cache do python
+__pycache__/
+*.pyc
+
+# Dados gerados localmente(banco, vetores do RAG)
+tmp/
