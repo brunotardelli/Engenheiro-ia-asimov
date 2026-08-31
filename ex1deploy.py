@@ -1,3 +1,18 @@
+import os
+from pathlib import Path
+
+# --- Correção para deploy no Render (ou qualquer servidor com SQLite antigo) ---
+# O ChromaDB exige uma versão do SQLite mais nova do que a que vem por padrão
+# em muitos servidores. Essas 3 linhas "substituem" o sqlite3 padrão do Python
+# pela versão mais nova instalada via pysqlite3-binary (ver requirements.txt).
+# Isso precisa vir ANTES de qualquer import relacionado a chromadb.
+try:
+    __import__("pysqlite3")
+    import sys
+    sys.modules["sqlite3"] = sys.modules.pop("pysqlite3")
+except ImportError:
+    pass  # Na sua máquina local isso não é necessário, então ignoramos se não existir
+
 from agno.agent import Agent
 from agno.models.openai import OpenAIChat
 from agno.db.sqlite import SqliteDb
@@ -10,6 +25,11 @@ from pydantic import BaseModel
 import uvicorn
 
 load_dotenv()
+
+# Garante que a pasta "tmp" existe antes de tentar usá-la.
+# No Render, o repositório clonado NÃO tem essa pasta (ela está no .gitignore),
+# então se não criarmos, o SqliteDb/ChromaDb vão quebrar procurando um lugar que não existe.
+Path("tmp").mkdir(exist_ok=True)
 
 # --- Banco de dados (sessões e histórico) ---
 db = SqliteDb(db_file="tmp/agent.db")
@@ -30,34 +50,26 @@ agent = Agent(
     debug_mode=True,
 )
 
-# ---------------------------------------------------------
-# A partir daqui é a parte NOVA: nosso próprio FastAPI
-# ---------------------------------------------------------
-
-# 1. Cria o "restaurante" (a aplicação web)
 app = FastAPI(title="API do Agente PDF")
 
-# 2. Define o "cardápio": o formato exato que esperamos receber
 class ChatRequest(BaseModel):
-    message: str          # a pergunta do usuário (obrigatório)
-    user_id: str = "default_user"   # opcional, com valor padrão
+    message: str
+    user_id: str = "default_user"
 
-# 3. Define o formato da resposta que vamos devolver
 class ChatResponse(BaseModel):
     response: str
 
-# 4. Cria a rota /chat, que aceita requisições do tipo POST
 @app.post("/chat", response_model=ChatResponse)
 def chat(request: ChatRequest):
-    # Chama o agente "cozinheiro" com a pergunta recebida
     run_output = agent.run(request.message, user_id=request.user_id)
-    # .content é onde mora o texto da resposta final do agente
     return ChatResponse(response=run_output.content)
 
-# 5. Uma rota simples de "saúde" — útil pra checar se o servidor tá de pé
 @app.get("/")
 def health_check():
     return {"status": "ok", "agent": agent.name}
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    # PORT vem do ambiente (é assim que o Render informa qual porta usar).
+    # Localmente, se essa variável não existir, cai no padrão 8000.
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)

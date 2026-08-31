@@ -290,6 +290,8 @@ pypika==0.51.1
     # via chromadb
 pyproject-hooks==1.2.0
     # via build
+pysqlite3-binary==0.5.4.post2
+    # via curso-agno
 python-dateutil==2.9.0.post0
     # via
     #   kubernetes
