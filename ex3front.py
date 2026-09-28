@@ -7,7 +7,7 @@ st.title("🤖 Assistente de Documentos PDF")
 st.caption("Faça perguntas sobre os documentos carregados no Agente.")
 
 # 2. URL da sua API FastAPI (onde o ex1deploy.py está rodando)
-API_URL = "http://localhost:8000/chat"
+API_URL = "https://primeiro-deploy-agente-pdf.onrender.com/chat"
 
 # 3. Inicializa o histórico de mensagens na memória da sessão do navegador
 if "messages" not in st.session_state:
